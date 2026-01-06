@@ -32,12 +32,11 @@ def generate_color_ramp(font_size: int = 32, image_size: int = 48, font_path: st
 
     return results
 
-def get_charset(color_ramp: list[tuple[str, float]], levels: int = 8):
+def get_charmap(color_ramp: list[tuple[str, float]], levels: int = 8):
     if levels < 2:
         raise ValueError("levels must be >= 2")
     
     quantized_values = [i/levels for i in range(levels + 1)]
-    print(quantized_values)
     
     out_ramp = []
     for value in quantized_values:
@@ -45,12 +44,10 @@ def get_charset(color_ramp: list[tuple[str, float]], levels: int = 8):
         for char, lum in color_ramp:
             distance = abs(value - lum)
             if distance < best_char[1]:
-                #print(distance, best_char[1])
                 best_char = (char, distance)
-        print(value, best_char[0], best_char[1])
         out_ramp.append(best_char[0])
     return "".join(out_ramp)
 
 if __name__ == "__main__":
     ramp = generate_color_ramp()
-    print(get_charset(ramp))
+    print(get_charmap(ramp))
