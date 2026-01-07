@@ -14,13 +14,14 @@ Examples:
 %(prog)s image.png
 %(prog)s video.mp4 --no-audio
 %(prog)s image.jpg --block-size 16 --num-ascii 70
+%(prog)s camera -b 4 -n 32
         """
     )
     
     parser.add_argument(
         "input",
         type=str,
-        help="Path to input image or video file"
+        help="Path to input image or video file or \"camera\" to view the camera"
     )
     
     parser.add_argument(
