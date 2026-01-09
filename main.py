@@ -18,8 +18,8 @@ def add_common_args(parser):
     parser.add_argument(
         "-n", "--num-ascii",
         type=int,
-        default=128,
-        help="Number of ASCII characters to use (default: 128)"
+        default=8,
+        help="Number of ASCII characters to use (default: 8)"
     )
     
     parser.add_argument(

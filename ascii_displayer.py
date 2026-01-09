@@ -101,11 +101,11 @@ class AsciiDisplayer:
         from video_extracter import extract_video
 
         # Setup terminal
-        print("\033[?1049h\033[?25l\033[H\033[2J", end="") # seperate buffer, hide cursor, move cursor home, clear screen
+        print("\033[?1049h\033[?25l\033[H\033[2J", end="")
         sys.stdout.flush()
 
         def cleanup():
-            print("\033[?25h\033[?1049l", end="") # restore cursor and restore buffer
+            print("\033[?25h\033[?1049l", end="")
             sys.stdout.flush()
         
         def signal_handler(sig, frame):
@@ -153,18 +153,16 @@ class AsciiDisplayer:
             cleanup()
     
     def display_asc_file(self, asc_path: str, play_audio: bool = True):
-        """Display a pre-encoded .asc file"""
-        import shutil
-        
+        """Display a pre-encoded .asc file - BLAZING FAST!"""
         decoder = AsciiDecoder()
         decoder.read(asc_path)
         
         # Setup terminal
-        print("\033[?1049h\033[?25l\033[H\033[2J", end="") # seperate buffer, hide cursor, move cursor home, clear screen
+        print("\033[?1049h\033[?25l\033[H\033[2J", end="")
         sys.stdout.flush()
 
         def cleanup():
-            print("\033[?25h\033[?1049l", end="") # restore cursor and restore buffer
+            print("\033[?25h\033[?1049l", end="")
             sys.stdout.flush()
         
         def signal_handler(sig, frame):
@@ -175,27 +173,11 @@ class AsciiDisplayer:
         signal.signal(signal.SIGTERM, signal_handler)
         
         try:
-            # Check if scaling is needed
-            term_cols, term_rows = shutil.get_terminal_size()
-            
-            needed_cols = decoder.width * 2  # Each char is doubled
-            needed_rows = decoder.height
-            
-            scale_needed = needed_cols > term_cols or needed_rows > (term_rows - 2)
-            
-            if scale_needed:
-                scale_factor = min(
-                    term_cols / needed_cols,
-                    (term_rows - 2) / needed_rows
-                )
-                scaled_width = int(decoder.width * scale_factor)
-                scaled_height = int(decoder.height * scale_factor)
-            
             player = None
             if play_audio and decoder.has_audio and decoder.audio_data:
                 def audio_gen():
                     if decoder.audio_data:
-                        chunk_size = decoder.audio_rate * 2 * decoder.audio_channels  # 1 second chunks
+                        chunk_size = decoder.audio_rate * 2 * decoder.audio_channels
                         for i in range(0, len(decoder.audio_data), chunk_size):
                             chunk = decoder.audio_data[i:i+chunk_size]
                             valid_size = (len(chunk) // 4) * 4
@@ -207,58 +189,32 @@ class AsciiDisplayer:
                 player.start()
             
             if decoder.is_video:
+                # Video playback - just write pre-rendered strings!
                 frame_time = 1.0 / decoder.fps
                 start_time = time.time()
-                    
-                for frame_idx in range(len(decoder.get_all_frames())):
+                
+                for frame_idx, frame_str in enumerate(decoder.frames):
                     elapsed = time.time() - start_time
                     target_frame = int(elapsed * decoder.fps)
                     
                     # Skip frame if behind
-                    if frame_idx - 1 < target_frame:
+                    if frame_idx < target_frame:
                         continue
                     
-                    ascii_array = decoder.to_ascii_array(frame_idx)
-                    
-                    frame_str = self.render_ascii(ascii_array, decoder.has_color)
+                    # Just write the pre-rendered string - NO PROCESSING!
                     sys.stdout.write(f"\033[H{frame_str}")
                     sys.stdout.flush()
                     
-                    # Sleep if extra time to cap fps to video frame rate
-                    target_time = start_time + frame_idx * frame_time
+                    # Sleep to maintain frame rate
+                    target_time = start_time + (frame_idx + 1) * frame_time
                     sleep_time = target_time - time.time()
                     if sleep_time > 0:
                         time.sleep(sleep_time)
             else:
-                ascii_array = decoder.to_ascii_array(0)
-                
-                # Scale if needed
-                if scale_needed:
-                    char_indices, colors = decoder.get_frame(0)
-                    
-                    expanded = np.repeat(np.repeat(char_indices, decoder.chunk_size, axis=0), decoder.chunk_size, axis=1)
-                    
-                    if colors is not None:
-                        expanded_colors = np.repeat(np.repeat(colors, decoder.chunk_size, axis=0), decoder.chunk_size, axis=1)
-                        r = ((expanded_colors >> 16) & 0xFF).astype(np.uint8)
-                        g = ((expanded_colors >> 8) & 0xFF).astype(np.uint8)
-                        b = (expanded_colors & 0xFF).astype(np.uint8)
-                        img_data = np.stack([r, g, b], axis=-1)
-                    else:
-                        gray = (expanded * 255 / len(decoder.charmap)).astype(np.uint8)
-                        img_data = np.stack([gray, gray, gray], axis=-1)
-                    
-                    img = Image.fromarray(img_data, 'RGB')
-                    new_width = scaled_width * self.converter.chunk_size
-                    new_height = scaled_height * self.converter.chunk_size
-                    img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-                    
-                    ascii_array = self.converter.get_ascii(img, decoder.has_color)
-                
-                frame_str = self.render_ascii(ascii_array, decoder.has_color)
-                sys.stdout.write(f"\033[H{frame_str}")
+                # Single image - just write it!
+                sys.stdout.write(f"\033[H{decoder.frames[0]}")
                 sys.stdout.flush()
-                input()  # Wait for user to press Enter
+                input()
         
         finally:
             if player:
@@ -294,13 +250,12 @@ class AsciiDisplayer:
             print("Make sure a camera is connected and is available")
             return
         
-        
         # Setup terminal
-        print("\033[?1049h\033[?25l\033[H\033[2J", end="") # seperate buffer, hide cursor, move cursor home, clear screen
+        print("\033[?1049h\033[?25l\033[H\033[2J", end="")
         sys.stdout.flush()
         
         def cleanup():
-            print("\033[?25h\033[?1049l", end="") # restore cursor and restore buffer
+            print("\033[?25h\033[?1049l", end="")
             sys.stdout.flush()
         
         def signal_handler(sig, frame):
