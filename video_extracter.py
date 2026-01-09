@@ -44,7 +44,7 @@ def extract_video(video_path: str, audio_rate=44100) -> Tuple[float, Generator[I
 
     # Parse FPS
     num, den = map(int, stream.get('r_frame_rate', '30/1').split('/'))
-    fps = num / den
+    fps = round(num / den)
 
     # Downscale to 720p if necessary
     if orig_height > 720:
