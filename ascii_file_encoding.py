@@ -2,6 +2,7 @@ import struct
 import os
 from utils import format_file_size
 from typing import List, Optional
+import zstandard as zstd
 
 class AsciiEncoder:
     """Encoder for .asc (ASCII Container) file format - stores pre-rendered ANSI strings"""
@@ -14,16 +15,16 @@ class AsciiEncoder:
     FLAG_HAS_AUDIO = 1 << 1
     
     def __init__(self):
-        self.frames = []  # Store actual ANSI strings
-        self.fps = 30.0
-        self.has_audio = False
+        self.frames: list[str] = []  # Store actual ANSI strings
+        self.fps: float = 30.0
+        self.has_audio: bool = False
         self.audio_data = None
-        self.audio_rate = 44100
-        self.audio_channels = 2
+        self.audio_rate: int = 44100
+        self.audio_channels: int = 2
     
     def add_rendered_frame(self, ansi_string: str):
         """
-        Add a pre-rendered frame (ANSI escape sequence string)
+        Add a pre-rendered frame
         
         Args:
             ansi_string: Complete ANSI string ready to display
@@ -61,13 +62,24 @@ class AsciiEncoder:
                 len(self.frames),  # Frame count (4 bytes)
                 b'\x00' * 8                 # Reserved (8 bytes)
             )
-            f.write(header)
             
-            # Write frames as length-prefixed strings
-            for frame_str in self.frames:
-                frame_bytes = frame_str.encode('utf-8')
-                f.write(struct.pack('!I', len(frame_bytes)))
-                f.write(frame_bytes)
+            f.write(header)
+
+            frame_bytes = [frame.encode("utf-8") for frame in self.frames]
+            frame_lengths = [len(b) for b in frame_bytes]
+            all_frames_bytes = b"".join(frame_bytes)
+
+            print("Compressing")
+            cctx = zstd.ZstdCompressor(level=5)
+            compressed = cctx.compress(all_frames_bytes)
+            
+            print("Writing")
+            for l in frame_lengths:
+                f.write(struct.pack("!I", l))
+
+            # write compressed blob
+            f.write(struct.pack("!I", len(compressed)))
+            f.write(compressed)
             
             # Write audio if present
             if self.has_audio and self.audio_data:
@@ -167,7 +179,6 @@ class AsciiEncoder:
             file_size = os.path.getsize(output_path)
             print(f"Saved to {output_path}")
             print(f"File size: {format_file_size(file_size)}")
-            print(f"⚠️  Large file size is expected for instant playback!")
             
         except Exception as e:
             print(f"\nError during encoding: {e}")
@@ -187,19 +198,17 @@ class AsciiDecoder:
         self.audio_channels = 2
     
     def read(self, input_path: str):
-        """Read and decode .asc file"""
+        """Read and decode .asc file with block-compressed frames"""
         with open(input_path, 'rb') as f:
             # Read header (24 bytes)
             header_data = f.read(24)
             if len(header_data) < 24:
                 raise ValueError("Invalid file: header too short")
             
-            (magic, version, flags, fps, frame_count, reserved) = struct.unpack(
-                '!4sHHfI8s', header_data
-            )
+            magic, version, flags, fps, frame_count, reserved = struct.unpack('!4sHHfI8s', header_data)
             
-            if magic != b'ASCR':
-                raise ValueError(f"Invalid file format: expected 'ASCR', got {magic}")
+            if magic != b'ASII':
+                raise ValueError(f"Invalid file format: expected 'ASII', got {magic}")
             
             if version != 2:
                 raise ValueError(f"Unsupported version: {version}")
@@ -207,18 +216,28 @@ class AsciiDecoder:
             # Parse flags
             self.is_video = bool(flags & AsciiEncoder.FLAG_IS_VIDEO)
             self.has_audio = bool(flags & AsciiEncoder.FLAG_HAS_AUDIO)
-            
             self.fps = fps
             
-            # Read all frames
-            self.frames = []
-            for _ in range(frame_count):
-                frame_size = struct.unpack('!I', f.read(4))[0]
-                frame_bytes = f.read(frame_size)
-                frame_str = frame_bytes.decode('utf-8')
-                self.frames.append(frame_str)
+            frame_lengths = [
+                struct.unpack("!I", f.read(4))[0]
+                for _ in range(frame_count)
+            ]
+
+            compressed_size = struct.unpack("!I", f.read(4))[0]
+            compressed = f.read(compressed_size)
+
+            print("Decompressing")
+            dctx = zstd.ZstdDecompressor()
+            all_frames_bytes = dctx.decompress(compressed)
+            print("Done decompressing")
             
-            # Read audio if present
+            self.frames = []
+            idx = 0
+            for length in frame_lengths:
+                frame_bytes = all_frames_bytes[idx:idx+length]
+                self.frames.append(frame_bytes.decode('utf-8'))
+                idx += length
+            
             if self.has_audio:
                 audio_size, audio_format, self.audio_rate = struct.unpack('!IBI', f.read(9))
                 self.audio_channels = struct.unpack('!B', f.read(1))[0]

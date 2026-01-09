@@ -3,3 +3,4 @@ Pillow
 numba
 sounddevice
 opencv-python
+zstandard
