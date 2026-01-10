@@ -1,0 +1,14 @@
+[project]
+name = "AsciiPlayerCli"
+version = "0.1.0"
+description = "Made for Intersession 2026"
+authors = [{name = "Colin Politi", email = "urboycolinthepanda@gmail.com"}]
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "Pillow",
+    "numba",
+    "sounddevice",
+    "opencv-python",
+    "zstandard"
+]
