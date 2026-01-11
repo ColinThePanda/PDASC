@@ -5,13 +5,16 @@ import numpy as np
 import time
 import sys
 import signal
+import atexit
 from audio_player import AudioPlayer
 from ascii_file_encoding import AsciiDecoder, AsciiEncoder
 
 class AsciiDisplayer:
-    def __init__(self, converter: AsciiConverter):
+    def __init__(self, converter: AsciiConverter, debug: bool = False):
         self.converter: AsciiConverter = converter
-    
+        self._cleanup_done = False
+        self.debug = debug
+
     def color_text(self, text: str, r: int, g: int, b: int):
         r = max(min(r, 255), 0)
         g = max(min(g, 255), 0)
@@ -55,22 +58,61 @@ class AsciiDisplayer:
         sys.stdout.write(f"\033[H{frame}")
         sys.stdout.flush()
     
-    def display_image(self, image: Image.Image, color: bool = True):
-        import shutil
-        
+    def _terminal_cleanup(self):
+        """Restore terminal to normal state"""
+        if not self._cleanup_done:
+            self._cleanup_done = True
+            # Disable signal handlers during cleanup to prevent interruption
+            signal.signal(signal.SIGINT, signal.SIG_IGN)
+            signal.signal(signal.SIGTERM, signal.SIG_IGN)
+            
+            # Write cleanup sequences atomically
+            try:
+                cleanup_seq = "\033[0m\033[?25h\033[?1049l"
+                sys.stdout.write(cleanup_seq)
+                sys.stdout.flush()
+            except:
+                # If stdout fails, try stderr as fallback
+                try:
+                    sys.stderr.write(cleanup_seq)
+                    sys.stderr.flush()
+                except:
+                    pass
+            
+            # Force terminal back to sane state using stty
+            import subprocess
+            try:
+                subprocess.run(['stty', 'echo', 'icanon'], 
+                             stdin=sys.stdin, 
+                             stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL,
+                             timeout=0.5)
+            except:
+                pass
+    
+    def _setup_terminal_context(self):
+        """Setup terminal and ensure cleanup happens"""
         print("\033[?1049h\033[?25l\033[H\033[2J", end="")
         sys.stdout.flush()
-
-        def cleanup():
-            print("\033[?25h\033[?1049l", end="")
-            sys.stdout.flush()
+        
+        self._cleanup_done = False
+        
+        # Multiple layers of protection
+        atexit.register(self._terminal_cleanup)
         
         def signal_handler(sig, frame):
-            cleanup()
-            sys.exit(0)
+            self._terminal_cleanup()
+            # Force exit without further exception handling
+            import os
+            os._exit(0)
         
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
+    
+    def display_image(self, image: Image.Image, color: bool = True):
+        import shutil
+        
+        self._setup_terminal_context()
         
         try:
             term_cols, term_rows = shutil.get_terminal_size()
@@ -95,31 +137,18 @@ class AsciiDisplayer:
             self.render_image(image, color)
             input()
         finally:
-            cleanup()
+            self._terminal_cleanup()
 
     def display_video(self, video_path: str, play_audio: bool = True, color: bool = True):
         from video_extracter import extract_video
 
-        # Setup terminal
-        print("\033[?1049h\033[?25l\033[H\033[2J", end="")
-        sys.stdout.flush()
-
-        def cleanup():
-            print("\033[?25h\033[?1049l", end="")
-            sys.stdout.flush()
+        self._setup_terminal_context()
         
-        def signal_handler(sig, frame):
-            """"Handles CTRL-C and exiting to properly close video"""
-            cleanup()
-            sys.exit(0)
+        player = None
         
-        signal.signal(signal.SIGINT, signal_handler)
-        signal.signal(signal.SIGTERM, signal_handler)
-
         try:
             fps, frame_gen, audio_gen = extract_video(video_path)
             
-            player = None
             if play_audio and audio_gen is not None:
                 player = AudioPlayer(audio_gen)
                 player.start()
@@ -140,40 +169,39 @@ class AsciiDisplayer:
                 
                 self.render_image(frame, color)
                 
+                if self.debug:
+                    current_time = time.time()
+                    actual_fps = frame_idx / (current_time - start_time)
+                    sys.stdout.write(f"\n\033[2KFPS: {round(actual_fps)}")
+                    sys.stdout.flush()
+                
                 # Sleep if extra time to cap fps to video frame rate
                 target_time = start_time + frame_idx * frame_time
                 sleep_time = target_time - time.time()
                 if sleep_time > 0:
                     time.sleep(sleep_time)
+        
+        except KeyboardInterrupt:
+            pass  # Handle Ctrl+C gracefully
                     
         finally:
             if player:
-                player.stream.stop()
-                player.stream.close()
-            cleanup()
+                try:
+                    player.stop()
+                except:
+                    pass
+            self._terminal_cleanup()
     
     def display_asc_file(self, asc_path: str, play_audio: bool = True):
         """Display a pre-encoded .asc file - BLAZING FAST!"""
         decoder = AsciiDecoder()
         decoder.read(asc_path)
         
-        # Setup terminal
-        print("\033[?1049h\033[?25l\033[H\033[2J", end="")
-        sys.stdout.flush()
-
-        def cleanup():
-            print("\033[?25h\033[?1049l", end="")
-            sys.stdout.flush()
+        self._setup_terminal_context()
         
-        def signal_handler(sig, frame):
-            cleanup()
-            sys.exit(0)
-        
-        signal.signal(signal.SIGINT, signal_handler)
-        signal.signal(signal.SIGTERM, signal_handler)
+        player = None
         
         try:
-            player = None
             if play_audio and decoder.has_audio and decoder.audio_data:
                 def audio_gen():
                     if decoder.audio_data:
@@ -216,11 +244,14 @@ class AsciiDisplayer:
                 sys.stdout.flush()
                 input()
         
+        except KeyboardInterrupt:
+            pass  # Handle Ctrl+C gracefully
+        
         finally:
             if player:
                 player.stream.stop()
                 player.stream.close()
-            cleanup()
+            self._terminal_cleanup()
             
     def display_camera(self, camera_index: int = 0, color: bool = True):
         """Display live camera feed as ASCII art"""
@@ -250,20 +281,7 @@ class AsciiDisplayer:
             print("Make sure a camera is connected and is available")
             return
         
-        # Setup terminal
-        print("\033[?1049h\033[?25l\033[H\033[2J", end="")
-        sys.stdout.flush()
-        
-        def cleanup():
-            print("\033[?25h\033[?1049l", end="")
-            sys.stdout.flush()
-        
-        def signal_handler(sig, frame):
-            cleanup()
-            sys.exit(0)
-        
-        signal.signal(signal.SIGINT, signal_handler)
-        signal.signal(signal.SIGTERM, signal_handler)
+        self._setup_terminal_context()
         
         # Get camera FPS (default 30)
         fps = cap.get(cv2.CAP_PROP_FPS)
@@ -292,7 +310,10 @@ class AsciiDisplayer:
                 if sleep_time > 0:
                     time.sleep(sleep_time)
                 last_time = time.time()
+        
+        except KeyboardInterrupt:
+            pass  # Handle Ctrl+C gracefully
                 
         finally:
             cap.release()
-            cleanup()
+            self._terminal_cleanup()

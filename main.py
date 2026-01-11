@@ -1,10 +1,40 @@
+#!/usr/bin/env python3
+
+# Suppress resource_tracker semaphore warnings from sounddevice
+# Must be done before any other imports
+import os
+os.environ['PYTHONWARNINGS'] = 'ignore'
+
+import warnings
+warnings.filterwarnings('ignore')
+
+# Directly patch the resource tracker module
+try:
+    from multiprocessing import resource_tracker
+    
+    # Store original unregister
+    original_unregister = resource_tracker._resource_tracker.unregister
+    
+    def silent_unregister(name, rtype):
+        try:
+            return original_unregister(name, rtype)
+        except:
+            # Silently ignore cleanup errors
+            pass
+    
+    resource_tracker._resource_tracker.unregister = silent_unregister
+    
+    # Also patch the warnings in the resource tracker
+    resource_tracker.warnings = warnings
+except:
+    pass
+
 from ascii_converter import AsciiConverter
 from ascii_displayer import AsciiDisplayer
 from ascii_file_encoding import AsciiEncoder
 from PIL import Image
 import argparse
 import sys
-import os
 
 def add_common_args(parser):
     """Add arguments common to both play and encode"""
@@ -49,7 +79,7 @@ def cmd_play(args):
         sys.exit(1)
     
     converter = AsciiConverter(num_ascii=args.num_ascii, chunk_size=args.block_size, font_path=args.font)
-    displayer = AsciiDisplayer(converter)
+    displayer = AsciiDisplayer(converter, args.debug)
     
     try:
         if args.input == "camera":
@@ -162,6 +192,12 @@ Examples:
         help="Camera index when using camera input (default: 0)"
     )
     
+    play_parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug mode to show FPS and other debug info"
+    )
+    
     play_parser.set_defaults(func=cmd_play)
     
     # Encode subcommand
@@ -185,7 +221,7 @@ Examples:
     encode_parser.add_argument(
         "-o", "--output",
         type=str,
-        default="ascii_out.mp4",
+        default="ascii_out.asc",
         help="Output file path (required)"
     )
     
