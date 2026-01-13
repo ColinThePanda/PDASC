@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>ASCII Video Player</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        background: #000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        font-family: "Courier New", monospace;
+        overflow: hidden;
+        padding: 5px;
+      }
+
+      .player-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100vw;
+        height: 100vh;
+      }
+
+      .video-controls-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0px;
+        max-height: 99vh;
+      }
+
+      .video-wrapper {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      video {
+        width: 95vw;
+        max-height: calc(99vh - 55px);
+        object-fit: contain;
+      }
+
+      .controls {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        background: #1a1a1a;
+        color: #fff;
+        flex-wrap: nowrap;
+        white-space: nowrap;
+        box-sizing: border-box;
+      }
+
+      button {
+        background: #333;
+        color: #fff;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-family: "Courier New", monospace;
+        font-size: 14px;
+        transition: background 0.2s;
+        flex-shrink: 0;
+      }
+
+      button:hover {
+        background: #555;
+      }
+
+      button:active {
+        background: #666;
+      }
+
+      .progress-bar {
+        flex: 1;
+        min-width: 100px;
+        height: 8px;
+        background: #333;
+        border-radius: 4px;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .progress-fill {
+        height: 100%;
+        background: rgb(216, 18, 18);
+        width: 0%;
+        transition: width 0.1s linear;
+        border-radius: 4px;
+      }
+
+      .time-display {
+        font-size: 14px;
+        color: #ffffff;
+        min-width: 90px;
+        text-align: center;
+        flex-shrink: 0;
+      }
+
+      .volume-control {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+
+      input[type="range"] {
+        width: 80px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="player-container">
+      <div class="video-controls-wrapper">
+        <div class="video-wrapper">
+          <video id="video">
+            <source src="/video" type="video/mp4" />
+            Your browser doesn't support HTML5 video.
+          </video>
+        </div>
+
+        <div class="controls">
+          <button id="playPauseBtn">Play</button>
+
+          <div class="progress-bar" id="progressBar">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+
+          <div class="time-display">
+            <span id="currentTime">0:00</span> /
+            <span id="duration">0:00</span>
+          </div>
+
+          <div class="volume-control">
+            <span>🔊</span>
+            <input
+              type="range"
+              id="volumeSlider"
+              min="0"
+              max="100"
+              value="100"
+            />
+          </div>
+
+          <button id="fullscreenBtn">Fullscreen</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const video = document.getElementById("video");
+      const playPauseBtn = document.getElementById("playPauseBtn");
+      const progressBar = document.getElementById("progressBar");
+      const progressFill = document.getElementById("progressFill");
+      const currentTimeSpan = document.getElementById("currentTime");
+      const durationSpan = document.getElementById("duration");
+      const volumeSlider = document.getElementById("volumeSlider");
+      const fullscreenBtn = document.getElementById("fullscreenBtn");
+      const controls = document.querySelector(".controls");
+
+      function formatTime(seconds) {
+        if (isNaN(seconds)) return "0:00";
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs.toString().padStart(2, "0")}`;
+      }
+
+      function updateControlsWidth() {
+        // Get video's natural aspect ratio
+        const videoAspect = video.videoWidth / video.videoHeight;
+        const containerAspect = video.offsetWidth / video.offsetHeight;
+
+        let actualWidth;
+        if (videoAspect > containerAspect) {
+          // Video is wider - uses full width
+          actualWidth = video.offsetWidth;
+        } else {
+          // Video is taller - width is constrained by height
+          actualWidth = video.offsetHeight * videoAspect;
+        }
+
+        controls.style.width = actualWidth + "px";
+      }
+
+      video.addEventListener("loadedmetadata", () => {
+        durationSpan.textContent = formatTime(video.duration);
+        setTimeout(updateControlsWidth, 0);
+        console.log("Video loaded:", video.videoWidth, "x", video.videoHeight);
+      });
+
+      video.addEventListener("error", (e) => {
+        console.error("Video error:", e);
+        alert("Failed to load video");
+      });
+
+      window.addEventListener("resize", updateControlsWidth);
+
+      video.addEventListener("timeupdate", () => {
+        const percent = (video.currentTime / video.duration) * 100;
+        progressFill.style.width = percent + "%";
+        currentTimeSpan.textContent = formatTime(video.currentTime);
+      });
+
+      video.addEventListener("click", () => {
+        if (video.paused) {
+          video.play();
+          playPauseBtn.textContent = "Pause";
+        } else {
+          video.pause();
+          playPauseBtn.textContent = "Play";
+        }
+      });
+
+      playPauseBtn.addEventListener("click", () => {
+        if (video.paused) {
+          video.play();
+          playPauseBtn.textContent = "Pause";
+        } else {
+          video.pause();
+          playPauseBtn.textContent = "Play";
+        }
+      });
+
+      progressBar.addEventListener("click", (e) => {
+        const rect = progressBar.getBoundingClientRect();
+        const percent = (e.clientX - rect.left) / rect.width;
+        video.currentTime = percent * video.duration;
+      });
+
+      volumeSlider.addEventListener("input", (e) => {
+        video.volume = e.target.value / 100;
+      });
+
+      fullscreenBtn.addEventListener("click", () => {
+        if (!document.fullscreenElement) {
+          video.requestFullscreen();
+        } else {
+          document.exitFullscreen();
+        }
+      });
+
+      document.addEventListener("keydown", (e) => {
+        if (e.target.tagName === "INPUT") return;
+
+        switch (e.code) {
+          case "Space":
+            e.preventDefault();
+            playPauseBtn.click();
+            break;
+          case "ArrowLeft":
+            e.preventDefault();
+            video.currentTime = Math.max(0, video.currentTime - 5);
+            break;
+          case "ArrowRight":
+            e.preventDefault();
+            video.currentTime = Math.min(video.duration, video.currentTime + 5);
+            break;
+          case "KeyF":
+            e.preventDefault();
+            fullscreenBtn.click();
+            break;
+          case "KeyM":
+            e.preventDefault();
+            video.muted = !video.muted;
+            break;
+        }
+      });
+
+      video.addEventListener("ended", () => {
+        playPauseBtn.textContent = "Play";
+      });
+
+      video.addEventListener("play", () => {
+        playPauseBtn.textContent = "Pause";
+      });
+
+      video.addEventListener("pause", () => {
+        playPauseBtn.textContent = "Play";
+      });
+    </script>
+  </body>
+</html>

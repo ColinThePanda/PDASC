@@ -10,7 +10,7 @@ uniform bool colored;
 uniform int downscale_factor = 10;
 uniform int ascii_size = 8;
 
-vec3 get_ascii(float lum)
+float get_ascii(float lum)
 {
     ivec2 pixel = ivec2(gl_FragCoord.xy);
     ivec2 ascii_map_size = textureSize(ascii_map, 0);
@@ -53,5 +53,5 @@ void main()
     // Quantize luminance to discrete ASCII levels
     float quantized_lum = floor(gray * float(quantization_levels)) / float(quantization_levels - 1);
 
-    fragColor = colored ? vec4(get_ascii(quantized_lum) * color, 1.0) : vec4(get_ascii(quantized_lum), 1.0);
+    fragColor = colored ? vec4(get_ascii(quantized_lum) * color, 1.0) : vec4(vec3(get_ascii(quantized_lum)), 1.0);
 }

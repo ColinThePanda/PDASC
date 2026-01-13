@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ASCII Art Converter</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: #0a0a0a;
+        color: #e0e0e0;
+        display: flex;
+        height: 100vh;
+        overflow: hidden;
+        font-size: 16px;
+      }
+
+      .sidebar {
+        width: 320px;
+        background: #1a1a1a;
+        padding: 40px;
+        display: flex;
+        flex-direction: column;
+        gap: 32px;
+        box-shadow: 2px 0 20px rgba(0, 0, 0, 0.5);
+      }
+
+      h1 {
+        font-size: 28px;
+        color: #e0e0e0;
+        margin-bottom: 10px;
+        font-weight: 600;
+      }
+
+      .upload-section {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .upload-btn {
+        background: #2a2a2a;
+        color: #e0e0e0;
+        padding: 16px 24px;
+        border: 1px solid #3a3a3a;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 500;
+        transition: all 0.3s;
+        text-align: center;
+        text-justify: center;
+      }
+
+      .upload-btn:hover {
+        background: #333;
+        border-color: #4a4a4a;
+      }
+
+      input[type="file"] {
+        display: none;
+      }
+
+      .file-name {
+        font-size: 14px;
+        color: #888;
+        font-style: italic;
+        min-height: 20px;
+      }
+
+      .control-group {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      label {
+        font-size: 16px;
+        font-weight: 500;
+        color: #e0e0e0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .value-display {
+        color: #7cb3e9;
+        font-weight: 600;
+        font-size: 16px;
+      }
+
+      input[type="range"] {
+        width: 100%;
+        height: 8px;
+        background: #2a2a2a;
+        outline: none;
+        border-radius: 4px;
+        -webkit-appearance: none;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        background: #7cb3e9;
+        cursor: pointer;
+        border-radius: 50%;
+        transition: background 0.3s;
+      }
+
+      input[type="range"]::-webkit-slider-thumb:hover {
+        background: #5a9bd5;
+      }
+
+      input[type="range"]::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+        background: #7cb3e9;
+        cursor: pointer;
+        border-radius: 50%;
+        border: none;
+      }
+
+      .checkbox-container {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        cursor: pointer;
+      }
+
+      .checkbox-container span {
+        order: 1;
+      }
+
+      input[type="checkbox"] {
+        order: 2;
+        width: 22px;
+        height: 22px;
+        cursor: pointer;
+        accent-color: #7cb3e9;
+      }
+
+      .main-content {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 50px;
+        overflow: hidden;
+        background: #0f0f0f;
+        position: relative;
+        transition: background 0.3s;
+      }
+
+      .main-content.drag-over {
+        background: #1a1a1a;
+        border: 3px dashed #7cb3e9;
+      }
+
+      #ascii-output {
+        line-height: 1;
+        font-family: "Courier New", monospace;
+        white-space: pre;
+        text-align: center;
+        transform-origin: center center;
+        visibility: hidden;
+      }
+
+      #ascii-output.visible {
+        visibility: visible;
+      }
+
+      .placeholder {
+        color: #4a4a4a;
+        font-size: 20px;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="sidebar">
+      <div>
+        <h1>ASCII Art Converter</h1>
+      </div>
+
+      <div class="upload-section">
+        <label for="file-input" class="upload-btn"> Upload Image </label>
+        <input type="file" id="file-input" accept="image/*" />
+        <div class="file-name" id="file-name"></div>
+      </div>
+
+      <div class="control-group">
+        <label>
+          ASCII Characters
+          <span class="value-display" id="num-ascii-value">8</span>
+        </label>
+        <input type="range" id="num-ascii" min="2" max="64" value="8" />
+      </div>
+
+      <div class="control-group">
+        <label>
+          Block Size
+          <span class="value-display" id="block-size-value">8</span>
+        </label>
+        <input type="range" id="block-size" min="2" max="32" value="8" />
+      </div>
+
+      <div class="control-group">
+        <label class="checkbox-container">
+          <span>Colored</span>
+          <input type="checkbox" id="colored" checked />
+        </label>
+      </div>
+    </div>
+
+    <div class="main-content" id="drop-zone">
+      <div id="ascii-output" class="placeholder">
+        Upload an image to get started
+      </div>
+    </div>
+
+    <script>
+      let uploadedImage = null;
+
+      const fileInput = document.getElementById("file-input");
+      const fileName = document.getElementById("file-name");
+      const numAsciiSlider = document.getElementById("num-ascii");
+      const numAsciiValue = document.getElementById("num-ascii-value");
+      const blockSizeSlider = document.getElementById("block-size");
+      const blockSizeValue = document.getElementById("block-size-value");
+      const coloredCheckbox = document.getElementById("colored");
+      const asciiOutput = document.getElementById("ascii-output");
+      const dropZone = document.getElementById("drop-zone");
+
+      // Drag and drop handlers
+      dropZone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropZone.classList.add("drag-over");
+      });
+
+      dropZone.addEventListener("dragleave", (e) => {
+        e.preventDefault();
+        dropZone.classList.remove("drag-over");
+      });
+
+      dropZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropZone.classList.remove("drag-over");
+
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith("image/")) {
+          fileName.textContent = file.name;
+          uploadedImage = file;
+          generateAscii();
+        }
+      });
+
+      // Update slider value displays
+      numAsciiSlider.addEventListener("input", (e) => {
+        numAsciiValue.textContent = e.target.value;
+        if (uploadedImage) generateAscii();
+      });
+
+      blockSizeSlider.addEventListener("input", (e) => {
+        blockSizeValue.textContent = e.target.value;
+        if (uploadedImage) generateAscii();
+      });
+
+      coloredCheckbox.addEventListener("change", () => {
+        if (uploadedImage) generateAscii();
+      });
+
+      // Handle file upload
+      fileInput.addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          fileName.textContent = file.name;
+          uploadedImage = file;
+          generateAscii();
+        }
+      });
+
+      // Scale ASCII to fit container
+      function scaleAsciiToFit() {
+        const container = document.getElementsByClassName("main-content");
+        const output = asciiOutput;
+
+        if (output.classList.contains("placeholder")) return;
+
+        output.classList.remove("visible");
+
+        output.style.transform = "scale(1)";
+        output.style.fontSize = "10px";
+        void output.offsetHeight;
+
+        const containerWidth = container.clientWidth - 100;
+        const containerHeight = container.clientHeight - 100;
+        const outputWidth = output.scrollWidth;
+        const outputHeight = output.scrollHeight;
+
+        const scaleX = containerWidth / outputWidth;
+        const scaleY = containerHeight / outputHeight;
+
+        const scale = Math.min(scaleX, scaleY, 3);
+
+        output.style.transform = `scale(${scale})`;
+        output.classList.add("visible");
+      }
+
+      // Generate ASCII art
+      async function generateAscii() {
+        if (!uploadedImage) return;
+
+        // Hide output immediately
+        asciiOutput.classList.remove("visible");
+
+        const formData = new FormData();
+        formData.append("num_ascii", numAsciiSlider.value);
+        formData.append("block_size", blockSizeSlider.value);
+        formData.append("colored", coloredCheckbox.checked ? "1" : "0");
+        formData.append("image", uploadedImage);
+
+        try {
+          const response = await fetch("/ascii", {
+            method: "POST",
+            body: formData,
+          });
+          const html = await response.text();
+          asciiOutput.innerHTML = html;
+          asciiOutput.classList.remove("placeholder");
+
+          // Force immediate scale calculation before showing
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              scaleAsciiToFit();
+            });
+          });
+        } catch (error) {
+          console.error("Error generating ASCII:", error);
+          asciiOutput.innerHTML =
+            '<span style="color: #ff6b6b;">Error generating ASCII art</span>';
+          asciiOutput.classList.add("visible");
+        }
+      }
+
+      // Rescale on window resize
+      window.addEventListener("resize", () => {
+        if (uploadedImage && !asciiOutput.classList.contains("placeholder")) {
+          scaleAsciiToFit();
+        }
+      });
+    </script>
+  </body>
+</html>

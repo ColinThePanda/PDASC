@@ -12,7 +12,7 @@ warnings.filterwarnings(
 )
 
 from core import AsciiConverter, AsciiDisplayer, AsciiEncoder, generate_color_ramp, get_charmap, render_charmap, VideoAsciiConverter, process_video
-from web import create_video_server
+from web import create_video_server, ImageServer
 from PIL import Image
 import argparse
 import sys
@@ -100,6 +100,7 @@ def cmd_play(args):
                     with open("shaders/ascii.frag") as file:
                         frac_src = file.read()
                     charmap_img = render_charmap(get_charmap(generate_color_ramp(font_path="font8x8.ttf"), levels=16))
+                    charmap_img.save("charmap.png")
                     converter = VideoAsciiConverter(frac_src, charmap_img, not args.no_color)
                     out_path = process_video(converter, args.input, audio=not args.no_audio)
                     app = create_video_server(out_path)
@@ -153,6 +154,10 @@ def cmd_encode(args):
         encoder.encode_video_to_asc(args.input, args.output, not args.no_audio, not args.no_color, converter)
     else:
         encoder.encode_image_to_asc(args.input, args.output, not args.no_color, converter)
+
+def cmd_website(args):
+    app = ImageServer()
+    app.run()
 
 def main():
     parser = argparse.ArgumentParser(
@@ -234,15 +239,26 @@ Examples:
     
     encode_parser.set_defaults(func=cmd_encode)
     
-    # Parse arguments
+    website_parser = subparsers.add_parser(
+        'website',
+        help='Open a flask website with a demo of image conversion and sliders',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Usage:
+  %(prog)s website
+        """
+    )
+    
+    website_parser.set_defaults(func=cmd_website)
+    
     args = parser.parse_args()
     
-    # If no command specified, show help
+    # Show help if no command specified
     if not args.command:
         parser.print_help()
         sys.exit(1)
     
-    # Call the appropriate command function
+    # Call correct sub-command
     args.func(args)
 
 if __name__ == "__main__":
