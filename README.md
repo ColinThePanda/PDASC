@@ -1,29 +1,20 @@
-<div align="center">
+# PDASC
 
-```
- ____  ____    _    ____   ____
-|  _ \|  _ \  / \  / ___| / ___|
-| |_) | | | |/ _ \ \___ \| |
-|  __/| |_| / ___ \ ___) | |___
-|_|   |____/_/   \_\____/ \____|
-
-Panda Display ASCII
-```
+### Panda Display ASCII
 
 **High-performance terminal ASCII art converter for images, videos, and live camera feeds**
 
-[![PyPI](https://img.shields.io/pypi/v/PDASC?style=flat-square)](https://pypi.org/project/PDASC/)
-[![Python](https://img.shields.io/pypi/pyversions/PDASC?style=flat-square)](https://pypi.org/project/PDASC/)
+[![PyPI version](https://badge.fury.io/py/pdasc.svg)](https://pypi.org/project/PDASC/)
+[![Python](https://img.shields.io/pypi/pyversions/pdasc?style=flat-square&logo=python&logoColor=white)](https://pypi.org/project/PDASC/)
 [![License](https://img.shields.io/github/license/ColinThePanda/PDASC?style=flat-square)](LICENSE)
-[![Downloads](https://img.shields.io/pypi/dm/PDASC?style=flat-square)](https://pypi.org/project/PDASC/)
 
 [Installation](#installation) • [Quick Start](#quick-start) • [Usage](#usage) • [Documentation](#documentation)
 
 ---
 
-![Demo](docs/demo_video.gif)
+![Demo Image](docs/demo_image.png)
 
-</div>
+![Demo Video](docs/demo_video.gif)
 
 ## Overview
 
@@ -43,7 +34,7 @@ PDASC transforms multimedia content into colored ASCII art with hardware-acceler
 ### Recommended: Install with pipx
 
 ```bash
-pipx install pdasc
+pipx install PDASC
 ```
 
 This installs PDASC in an isolated environment and makes the `pdasc` command available globally.
@@ -51,7 +42,7 @@ This installs PDASC in an isolated environment and makes the `pdasc` command ava
 ### Alternative: Install with pip
 
 ```bash
-pip install pdasc
+pip install PDASC
 ```
 
 ### Prerequisites
@@ -390,7 +381,7 @@ See [LICENSE](LICENSE) for full text.
 
 <div align="center">
 
-**Made for Intersession 2026**
+### Made for Intersession 2026
 
 _Transform your terminal into a multimedia canvas_
 
