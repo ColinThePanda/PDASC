@@ -43,7 +43,7 @@ pip install PDASC
 pipx install PDASC
 ```
 
-This installs PDASC in an isolated environment and makes the `pdasc` command available globally. Note that pipx may require a C compiler on some platforms (particularly Windows).
+Note that pipx requires a C compiler to be installed.
 
 ### Prerequisites
 
@@ -179,16 +179,14 @@ The format prioritizes playback performance over storage efficiency, typically r
 
 **Header (24 bytes)**
 
-```
-Offset | Size | Type   | Description
--------|------|--------|----------------------------------
-0x00   | 4    | char   | Magic: "ASII"
-0x04   | 2    | uint16 | Version (currently 2)
-0x06   | 2    | uint16 | Flags (IS_VIDEO=0x01, HAS_AUDIO=0x02)
-0x08   | 4    | float  | FPS
-0x0C   | 4    | uint32 | Frame count
-0x10   | 8    | -      | Reserved
-```
+|Offset | Size | Type   | Description                           |
+|-------|------|--------|---------------------------------------|
+|0x00   | 4    | char   | Magic: "ASII"                         |
+|0x04   | 2    | uint16 | Version (currently 2)                 |
+|0x06   | 2    | uint16 | Flags (IS_VIDEO=0x01, HAS_AUDIO=0x02) |
+|0x08   | 4    | float  | FPS                                   |
+|0x0C   | 4    | uint32 | Frame count                           |
+|0x10   | 8    | -      | Reserved                              |
 
 **Frame Index Section**
 
@@ -220,7 +218,7 @@ The system analyzes TrueType fonts to create optimal character-to-brightness map
 
 #### Processing Pipeline
 
-```
+```txt
 Input Image/Frame
     ↓
 Divide into blocks (e.g., 8×8 pixels)
