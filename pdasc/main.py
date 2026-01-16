@@ -15,7 +15,7 @@ warnings.filterwarnings(
 # add root to path to import from core
 sys.path.insert(0, os.path.join(__file__, "../"))
 
-from core import AsciiConverter, AsciiDisplayer, AsciiEncoder, generate_color_ramp, get_charmap, render_charmap, VideoAsciiConverter, process_video
+from core import AsciiConverter, AsciiDisplayer, AsciiEncoder, VideoAsciiConverter, process_video
 from web import create_video_server, ImageServer
 from PIL import Image
 import argparse

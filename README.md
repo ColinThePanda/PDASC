@@ -1,6 +1,6 @@
 # PDASC
 
-### Panda Display ASCII
+## Panda ASCII
 
 **High-performance terminal ASCII art converter for images, videos, and live camera feeds**
 
@@ -18,13 +18,14 @@
 
 ## Overview
 
-PDASC transforms multimedia content into colored ASCII art with hardware-accelerated processing. Features include Numba JIT compilation for near-C performance, a custom `.asc` file format with Zstandard compression for instant playback, and GPU-accelerated rendering for web deployment.
+PDASC transforms multimedia content into colored ASCII art with hardware-accelerated processing. Features include Numba JIT compilation for near-C performance, a custom `.asc` file format with Zstandard compression for instant playback, and GPU-accelerated rendering for web deployment with edge detection support.
 
 ### Key Capabilities
 
 - **Multiple Input Sources**: Static images, video files, live camera feeds, pre-encoded `.asc` files
 - **Hardware Acceleration**: Numba JIT compilation and OpenGL shader-based rendering
 - **Advanced Processing**: Customizable character sets from TrueType fonts, adjustable ASCII density and block size
+- **Edge Detection**: Multi-pass rendering pipeline with Sobel edge detection for enhanced detail preservation
 - **Audio Support**: Synchronized PCM16 audio in `.asc` format with real-time streaming
 - **Instant Playback**: Pre-rendered ANSI sequences with Zstandard compression (5-38× compression ratio)
 - **Web Interface**: Interactive image converter and GPU-processed video player
@@ -34,13 +35,13 @@ PDASC transforms multimedia content into colored ASCII art with hardware-acceler
 ### Install with pip
 
 ```bash
-pip install PDASC
+pip install pdasc
 ```
 
 ### Alternative: Install with pipx
 
 ```bash
-pipx install PDASC
+pipx install pdasc
 ```
 
 Note that pipx requires a C compiler to be installed.
@@ -89,7 +90,7 @@ pdasc play output.asc
 # Launch web interface
 pdasc website
 
-# GPU-accelerated web video
+# GPU-accelerated web video with edge detection
 pdasc website video.mp4
 ```
 
@@ -135,7 +136,7 @@ pdasc website [input]
 
 # Examples
 pdasc website                    # Interactive image converter
-pdasc website video.mp4          # GPU-rendered video player
+pdasc website video.mp4          # GPU-rendered video player with edge detection
 pdasc website output.asc.mp4     # Play existing web video
 ```
 
@@ -159,6 +160,64 @@ pdasc website output.asc.mp4     # Play existing web video
 
 ## Documentation
 
+### GPU-Accelerated Video Processing
+
+The web video player uses a multi-pass OpenGL shader pipeline for real-time ASCII art rendering with edge detection, inspired by [Acerola's ASCII shader technique](https://www.youtube.com/watch?v=gg40RWiaHRY).
+
+The core concept works in two stages:
+
+**Fill ASCII (luminance-based):**
+
+1. Extract luminance from the input frame
+2. Quantize to 10 discrete brightness levels
+3. Map each level to an ASCII character based on visual density (` .;coPO?@█`)
+
+**Edge ASCII (edge-based):**
+
+1. Apply Difference of Gaussians (DoG) filter to detect edges
+2. Use Sobel filter to compute edge angles
+3. Quantize angles into 4 directions: horizontal (0°), vertical (90°), and diagonals (45°, 135°)
+4. Determine the dominant edge direction in each 8×8 pixel block
+5. Map the dominant direction to an edge character
+
+The original technique uses a compute shader that dispatches a thread group for each 8×8 pixel chunk, with each thread analyzing edge directions and writing to shared memory to find the dominant edge type. This implementation uses a simplified approach with iterative downsampling passes instead.
+
+**Fixed character set:** The shader uses 4 edge ASCII characters and 8 fill ASCII characters. This configuration is not user-configurable.
+
+#### Shader Passes
+
+The rendering pipeline consists of these sequential passes:
+
+```txt
+Input Frame
+    ↓
+1. Luminance Extraction
+    ↓
+2. Gaussian Blur (Horizontal)
+    ↓
+3. Gaussian Blur (Vertical) + DoG Edge Detection
+    ↓
+4. Sobel Edge Detection (Horizontal)
+    ↓
+5. Sobel Edge Detection (Vertical)
+    ↓
+6. Color/Luminance Packing
+    ↓
+7. Downsampling Chain (1/2 → 1/4 → 1/8)
+    ↓
+8. ASCII Character Selection
+    ↓
+Output Video (.asc.mp4)
+```
+
+Each 8×8 pixel block is analyzed to determine whether to use an edge character (based on edge threshold and direction) or a fill character (based on luminance).
+
+**Example (Acerola's original implementation):**
+
+![Acerola ASCII Example](docs/acerola_ascii.gif)
+
+_Note: This example showcases Acerola's original shader._
+
 ### The .asc File Format
 
 The `.asc` (ASCII Container) format stores pre-rendered ANSI escape sequences compressed with Zstandard, enabling instant playback with zero conversion overhead.
@@ -179,14 +238,14 @@ The format prioritizes playback performance over storage efficiency, typically r
 
 **Header (24 bytes)**
 
-|Offset | Size | Type   | Description                           |
-|-------|------|--------|---------------------------------------|
-|0x00   | 4    | char   | Magic: "ASII"                         |
-|0x04   | 2    | uint16 | Version (currently 2)                 |
-|0x06   | 2    | uint16 | Flags (IS_VIDEO=0x01, HAS_AUDIO=0x02) |
-|0x08   | 4    | float  | FPS                                   |
-|0x0C   | 4    | uint32 | Frame count                           |
-|0x10   | 8    | -      | Reserved                              |
+| Offset | Size | Type   | Description                           |
+| ------ | ---- | ------ | ------------------------------------- |
+| 0x00   | 4    | char   | Magic: "ASCI"                         |
+| 0x04   | 2    | uint16 | Version (currently 2)                 |
+| 0x06   | 2    | uint16 | Flags (IS_VIDEO=0x01, HAS_AUDIO=0x02) |
+| 0x08   | 4    | float  | FPS                                   |
+| 0x0C   | 4    | uint32 | Frame count                           |
+| 0x10   | 8    | -      | Reserved                              |
 
 **Frame Index Section**
 
@@ -251,6 +310,7 @@ Browser playback uses ModernGL with OpenGL shaders (browsers cannot efficiently 
 
 - Fragment shader processes each pixel in parallel
 - Converts RGB to ASCII character lookup
+- Applies edge detection for enhanced detail
 - Outputs standard `.asc.mp4` video file for smooth browser playback
 
 ### Performance Optimization
@@ -374,6 +434,10 @@ See [LICENSE](LICENSE) for full text.
 - **PyPI**: https://pypi.org/project/PDASC/
 - **GitHub**: https://github.com/ColinThePanda/PDASC
 - **Issues**: https://github.com/ColinThePanda/PDASC/issues
+
+## Credits
+
+GPU-accelerated ASCII video shader based on ["I Tried Turning Games Into Text"](https://www.youtube.com/watch?v=gg40RWiaHRY) by Acerola ([Garrett Gunnell](https://github.com/GarrettGunnell)).
 
 ---
 

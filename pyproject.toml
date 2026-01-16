@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "PDASC"
-version = "0.1.3.2"
+version = "0.1.4"
 description = "Made for Intersession 2026"
 readme = "README.md"
 license = { file = "LICENSE" }
