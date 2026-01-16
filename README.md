@@ -353,7 +353,7 @@ pdasc play landscape.png -n 50 -b 8
 ### Real-Time Webcam
 
 ```bash
-pdasc play camera -b 12 -n 40
+pdasc play camera -b 6 -n 40
 ```
 
 ![Webcam Example](docs/camera.gif)
