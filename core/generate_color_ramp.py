@@ -51,19 +51,3 @@ def get_charmap(color_ramp: list[tuple[str, float]], levels: int = 8):
                 best_char = (char, distance)
         out_ramp.append(best_char[0])
     return "".join(out_ramp)
-
-def render_charmap(charmap: str, font_path="font8x8.ttf", font_size=8, padding=0):
-    char_width = font_size
-    char_height = font_size
-    w = len(charmap) * (char_width + padding)
-    h = char_height + 2 * padding
-
-    img = Image.new("L", (w, h), 0)  # black background
-    draw = ImageDraw.Draw(img)
-    font = ImageFont.truetype(font_path, font_size)
-
-    for i, ch in enumerate(charmap):
-        x = i * (char_width + padding) + padding
-        y = padding
-        draw.text((x, y), ch, fill=255, font=font)
-    return img
