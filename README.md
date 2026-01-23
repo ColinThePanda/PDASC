@@ -208,7 +208,7 @@ Right Shift      SELECT
 
 3. **Run the emulator**:
    ```bash
-   pdasc play emulator cores/snes9x_libretro.dll roms/game.sfc -b 8 -n 32
+   pdasc play emulator -core cores/snes9x_libretro.dll -rom roms/game.sfc -b 8 -n 32
    ```
 
 ### Performance Tips for Emulation
